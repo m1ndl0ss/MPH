@@ -3,7 +3,6 @@ import {
   appointments,
   bookDates,
   bookTimes,
-  caretaker,
   defaultLinks,
   kinds,
   placeById,
@@ -109,26 +108,25 @@ function languageToggle() {
 }
 
 function shell(content: string) {
+  const showHelper =
+    screen.name !== 'gate' &&
+    screen.name !== 'setup' &&
+    screen.name !== 'kind' &&
+    screen.name !== 'pick' &&
+    screen.name !== 'number' &&
+    screen.name !== 'sensitive'
   return `
     <div class="shell">
       <header class="topbar">
-        <div class="brand">
-          <div class="brand-sub">${t(lang, ui.brandSub)}</div>
-        </div>
+        ${
+          showHelper
+            ? `<button class="family-entry" type="button" data-action="gate">${t(lang, ui.helperLink)}</button>`
+            : ''
+        }
         <div class="top-actions">
           ${languageToggle()}
         </div>
       </header>
-      ${
-        screen.name === 'gate' ||
-        screen.name === 'setup' ||
-        screen.name === 'kind' ||
-        screen.name === 'pick' ||
-        screen.name === 'number' ||
-        screen.name === 'sensitive'
-          ? ''
-          : `<button class="family-entry" type="button" data-action="gate">${t(lang, ui.helperLink)}</button>`
-      }
       ${content}
     </div>
   `
@@ -139,7 +137,7 @@ function fill(text: Localized, name: string): string {
 }
 
 function backButton(action: string) {
-  return `<button class="back" type="button" data-action="${action}">← ${t(lang, ui.back)}</button>`
+  return `<button class="btn btn-back" type="button" data-action="${action}">← ${t(lang, ui.back)}</button>`
 }
 
 function choices(items: { id: string; title: string; meta?: string; action: string }[]) {
@@ -170,7 +168,6 @@ function renderHome() {
   return shell(`
     <section class="screen">
       <h1>${t(lang, ui.homeTitle)}</h1>
-      <p class="permission-note">${t(lang, ui.homeNote)}</p>
       ${list}
       <button class="choice primary" type="button" data-action="appointments">
         <span class="choice-title">${t(lang, ui.appointmentsChoice)}</span>
@@ -222,11 +219,13 @@ function renderTasks(place: CatalogPlace) {
       ${backButton('home')}
       <h1>${place.name}</h1>
       <div class="stack">${choices(
-        place.tasks.map((task) => ({
-          id: task.id,
-          title: t(lang, task.label),
-          action: 'open-task',
-        })),
+        place.tasks
+          .filter((task) => task.outcome !== 'caretaker' || Boolean(place.phone))
+          .map((task) => ({
+            id: task.id,
+            title: t(lang, task.label),
+            action: 'open-task',
+          })),
       )}</div>
     </section>
   `)
@@ -279,7 +278,6 @@ function renderConfirm(place: CatalogPlace, task: Task, booking?: Booking) {
     <section class="screen">
       ${backButton(booking ? 'time-back' : 'tasks-back')}
       <h1>${t(lang, task.label)}</h1>
-      <p class="permission-note">${fill(booking ? ui.acceptAppointment : ui.acceptTask, place.name)}</p>
       ${booking ? `<p class="call-lead">${fill(ui.slotConfirm, place.name)}</p>` : ''}
       ${when}
       <div class="actions">
@@ -291,6 +289,18 @@ function renderConfirm(place: CatalogPlace, task: Task, booking?: Booking) {
 }
 
 function renderDone(place: CatalogPlace, task: Task, booking?: Booking) {
+  if (task.id === 'hours') {
+    const hours = (task.result ?? []).map((line) => `<li>${t(lang, line)}</li>`).join('')
+    return shell(`
+      <section class="screen">
+        ${backButton('tasks-back')}
+        <h1>${t(lang, task.label)}</h1>
+        <p class="choice-meta">${place.name}</p>
+        ${hours ? `<ul class="result-list">${hours}</ul>` : ''}
+      </section>
+    `)
+  }
+
   const result = (task.result ?? []).map((line) => `<li>${t(lang, line)}</li>`).join('')
   const when = booking
     ? `<div class="meta-list">
@@ -308,25 +318,26 @@ function renderDone(place: CatalogPlace, task: Task, booking?: Booking) {
       ${result ? `<ul class="result-list">${result}</ul>` : ''}
       <div class="actions">
         <button class="btn btn-primary" type="button" data-action="${booking ? 'appointments' : 'home'}">
-          ${t(lang, booking ? ui.viewAppointments : ui.back)}
+          ${t(lang, booking ? ui.viewAppointments : ui.gateBack)}
         </button>
       </div>
     </section>
   `)
 }
 
-function renderSensitive(place: CatalogPlace, task: Task) {
-  const phone = place.phone
-    ? `<p class="meta-label">${fill(ui.sensitivePhone, place.name)}</p>
+function phoneBlock(place: CatalogPlace) {
+  if (!place.phone) return ''
+  return `<p class="meta-label">${fill(ui.sensitivePhone, place.name)}</p>
        <a class="phone-number" href="tel:${place.phone.replaceAll(' ', '')}">${place.phone}</a>`
-    : `<p class="call-lead">${t(lang, ui.toCaretaker)}</p>`
+}
 
+function renderSensitive(place: CatalogPlace, task: Task) {
   return shell(`
     <section class="screen">
       ${backButton('tasks-back')}
       <h1>${t(lang, task.label)}</h1>
       <p class="check-note">${fill(ui.sensitiveLead, place.name)}</p>
-      ${phone}
+      ${phoneBlock(place)}
       <div class="actions">
         <button class="btn btn-primary" type="button" data-action="home">${t(lang, ui.gateBack)}</button>
       </div>
@@ -334,16 +345,14 @@ function renderSensitive(place: CatalogPlace, task: Task) {
   `)
 }
 
-function renderCaretaker(place: CatalogPlace, task: Task) {
+function renderCaretaker(place: CatalogPlace) {
   return shell(`
     <section class="screen">
-      ${backButton('tasks-back')}
-      <h1>${t(lang, ui.caretakerSent)}</h1>
-      <p class="call-lead">${t(lang, ui.toCaretaker)}</p>
-      <p class="choice-meta">${place.name} · ${t(lang, task.label)}</p>
-      <p class="choice-meta">${t(lang, caretaker)}</p>
+      <h1>${fill(ui.callTitle, place.name)}</h1>
+      <p class="call-lead">${t(lang, ui.cannotDo)}</p>
+      ${phoneBlock(place)}
       <div class="actions">
-        <button class="btn btn-primary" type="button" data-action="home">${t(lang, ui.back)}</button>
+        ${backButton('tasks-back')}
       </div>
     </section>
   `)
@@ -505,7 +514,7 @@ function render() {
       app.innerHTML = renderDone(screen.place, screen.task, screen.booking)
       break
     case 'caretaker':
-      app.innerHTML = renderCaretaker(screen.place, screen.task)
+      app.innerHTML = renderCaretaker(screen.place)
       break
     case 'sensitive':
       app.innerHTML = renderSensitive(screen.place, screen.task)
@@ -588,6 +597,9 @@ function bind() {
         if (task.outcome === 'book') {
           return go({ name: 'date', place: screen.place, link: screen.link, task })
         }
+        if (task.id === 'hours') {
+          return go({ name: 'done', place: screen.place, task })
+        }
         return go({ name: 'confirm', place: screen.place, link: screen.link, task })
       }
 
@@ -598,7 +610,8 @@ function bind() {
           screen.name === 'time' ||
           screen.name === 'confirm' ||
           screen.name === 'caretaker' ||
-          screen.name === 'sensitive')
+          screen.name === 'sensitive' ||
+          screen.name === 'done')
       ) {
         const placeId = screen.place.id
         const found = myPlaces().find((item) => item.place.id === placeId)

@@ -32,7 +32,7 @@ export type CatalogPlace = {
   name: string
   address: string
   city: string
-  /** Published switchboard. Shown only when a task needs an extra check. */
+  /** Published switchboard. Shown when the app cannot do the task, or the task needs an extra check. */
   phone?: string
   tasks: Task[]
 }
@@ -41,8 +41,6 @@ export type LinkedPlace = {
   catalogId: string
   patientNumber: string
 }
-
-export const caretaker = L('Kind, kleinkind of verzorger', 'Child, grandchild, or caretaker')
 
 export const bookDates: { id: string; label: Localized }[] = [
   { id: '2026-09-28', label: L('Maandag 28 september', 'Monday 28 September') },
@@ -171,6 +169,7 @@ export const catalog: CatalogPlace[] = [
     name: 'Huisartsenpraktijk Smeets',
     address: 'Heerderweg 5',
     city: 'Maastricht',
+    phone: '043 363 61 31',
     tasks: tasksFor('gp'),
   },
   {
@@ -275,6 +274,7 @@ export const catalog: CatalogPlace[] = [
     name: 'Dental Clinics Maastricht Scharn',
     address: 'Scharnerweg 16',
     city: 'Maastricht',
+    phone: '043 325 15 45',
     tasks: tasksFor('dentist'),
   },
   {
@@ -331,6 +331,7 @@ export const catalog: CatalogPlace[] = [
     name: 'Service Apotheek Wijck-Ceramique',
     address: 'Avenue Ceramique 155',
     city: 'Maastricht',
+    phone: '043 325 82 39',
     tasks: tasksFor('pharmacy'),
   },
   {
@@ -460,6 +461,7 @@ export const catalog: CatalogPlace[] = [
     name: 'SVB, AOW',
     address: 'Avenue Céramique 50',
     city: 'Maastricht',
+    phone: '088 949 40 00',
     tasks: [
       done('pay', L('Bekijk mijn AOW', 'See my AOW'), [
         L('Volgende betaling: 23 oktober', 'Next payment: 23 October'),
@@ -473,6 +475,7 @@ export const catalog: CatalogPlace[] = [
     name: 'Gemeente Maastricht',
     address: 'Mosae Forum 10',
     city: 'Maastricht',
+    phone: '14 043',
     tasks: [
       book('book', L('Maak een afspraak', 'Make an appointment')),
       done('wmo', L('Bekijk hulp in huis', 'See help at home'), [
@@ -509,7 +512,6 @@ export function searchPlaces(kind: Kind, query: string, excludeIds: string[] = [
 }
 
 export const ui = {
-  brandSub: L('Alleen uw eigen plekken', 'Only your own places'),
   langLabel: L('Taal', 'Language'),
   helperLink: L('Voor kind, kleinkind of verzorger', 'For a child, grandchild, or caretaker'),
   gateTitle: L('Dit is voor uw kind, kleinkind of verzorger', 'This is for your child, grandchild, or caretaker'),
@@ -520,10 +522,6 @@ export const ui = {
   gateYes: L('Ik ben kind, kleinkind of verzorger', 'I am a child, grandchild, or caretaker'),
   gateBack: L('Terug naar mijn plekken', 'Back to my places'),
   homeTitle: L('Uw plekken', 'Your places'),
-  homeNote: L(
-    'Elke plek op dit scherm neemt een afspraakverzoek aan. U hoeft niet opnieuw in te loggen.',
-    'Each place on this screen accepts an appointment request. You do not log in again.',
-  ),
   appointmentsChoice: L('Bekijk mijn afspraken', 'See my appointments'),
   back: L('Terug', 'Back'),
   appointmentsTitle: L('Mijn afspraken', 'My appointments'),
@@ -535,17 +533,9 @@ export const ui = {
   timeTitle: L('Hoe laat?', 'What time?'),
   startHelp: L('Ja, doe dit', 'Yes, do this'),
   stopCancel: L('Stoppen', 'Stop'),
-  acceptAppointment: L(
-    'U hoeft niet in te loggen. {name} neemt het afspraakverzoek aan.',
-    'You do not need to log in. {name} accepts the appointment request.',
-  ),
   slotConfirm: L(
     '{name} bevestigt het tijdstip. Dan staat de afspraak.',
     '{name} confirms the time. Then the appointment is booked.',
-  ),
-  acceptTask: L(
-    'U hoeft niet in te loggen. {name} neemt de taak aan.',
-    'You do not need to log in. {name} accepts the task.',
   ),
   doneTitle: L('Klaar. {name} heeft de taak aangenomen.', 'Done. {name} has accepted the task.'),
   bookedTitle: L(
@@ -557,16 +547,10 @@ export const ui = {
     'The DigiD permission does not cover this task. Call {name}.',
   ),
   sensitivePhone: L('Telefoon van {name}', 'Phone number for {name}'),
+  callTitle: L('Bel {name}', 'Call {name}'),
+  cannotDo: L('De app kan deze taak niet doen.', 'The app cannot do this task.'),
   startBook: L('Ja, deze afspraak', 'Yes, this appointment'),
   viewAppointments: L('Bekijk mijn afspraken', 'See my appointments'),
-  toCaretaker: L(
-    'De app kan deze taak niet doen. Het kind, kleinkind of de verzorger krijgt een bericht.',
-    'The app cannot do this task. The child, grandchild, or caretaker gets a message.',
-  ),
-  caretakerSent: L(
-    'Bericht naar het kind, kleinkind of de verzorger',
-    'Message to the child, grandchild, or caretaker',
-  ),
   setupTitle: L('Eenmalig instellen', 'Set up once'),
   setupPermission: L(
     'Log één keer in met de DigiD van de oudere persoon. De DigiD-toestemming blijft daarna gelden. De gekozen plek neemt later een afspraak of een andere gewone taak aan, zonder nieuwe login.',
