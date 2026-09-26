@@ -38,6 +38,7 @@ type Screen =
   | { name: 'caretaker'; place: CatalogPlace; task: Task }
   | { name: 'sensitive'; place: CatalogPlace; task: Task }
   | { name: 'gate' }
+  | { name: 'digid' }
   | { name: 'setup' }
   | { name: 'kind' }
   | { name: 'pick'; kind: Kind; query?: string }
@@ -110,6 +111,7 @@ function languageToggle() {
 function shell(content: string) {
   const showHelper =
     screen.name !== 'gate' &&
+    screen.name !== 'digid' &&
     screen.name !== 'setup' &&
     screen.name !== 'kind' &&
     screen.name !== 'pick' &&
@@ -365,7 +367,21 @@ function renderGate() {
       <p class="permission-note">${t(lang, ui.gateLead)}</p>
       <div class="actions">
         <button class="btn btn-primary" type="button" data-action="home">${t(lang, ui.gateBack)}</button>
-        <button class="btn btn-quiet" type="button" data-action="setup">${t(lang, ui.gateYes)}</button>
+        <button class="btn btn-quiet" type="button" data-action="digid">${t(lang, ui.gateYes)}</button>
+      </div>
+    </section>
+  `)
+}
+
+function renderDigid() {
+  return shell(`
+    <section class="screen screen-done">
+      ${backButton('gate')}
+      <div class="success-mark" aria-hidden="true">✓</div>
+      <h1>${t(lang, ui.digidTitle)}</h1>
+      <p class="permission-note">${t(lang, ui.digidLead)}</p>
+      <div class="actions">
+        <button class="btn btn-primary" type="button" data-action="setup">${t(lang, ui.digidNext)}</button>
       </div>
     </section>
   `)
@@ -522,6 +538,9 @@ function render() {
     case 'gate':
       app.innerHTML = renderGate()
       break
+    case 'digid':
+      app.innerHTML = renderDigid()
+      break
     case 'setup':
       app.innerHTML = renderSetup()
       break
@@ -565,6 +584,7 @@ function bind() {
         return go({ name: 'home' })
       }
       if (action === 'gate') return go({ name: 'gate' })
+      if (action === 'digid') return go({ name: 'digid' })
       if (action === 'appointments') return go({ name: 'appointments' })
       if (action === 'setup') return go({ name: 'setup' })
       if (action === 'finish-setup') {

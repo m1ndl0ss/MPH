@@ -208,6 +208,14 @@ button {
   align-items: flex-start;
 }
 
+.screen-done .permission-note,
+.screen-done .actions,
+.screen-done .result-list,
+.screen-done h1 {
+  align-self: stretch;
+  width: 100%;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

@@ -520,6 +520,12 @@ export const ui = {
     'A child, grandchild, or caretaker logs in once with the older person’s DigiD. After that, the place accepts an appointment request, with no new login. Go back if you are the older person.',
   ),
   gateYes: L('Ik ben kind, kleinkind of verzorger', 'I am a child, grandchild, or caretaker'),
+  digidTitle: L('Ingelogd met DigiD', 'Logged in with DigiD'),
+  digidLead: L(
+    'De oudere persoon is ingelogd met DigiD. De toestemming blijft gelden.',
+    'The older person is logged in with DigiD. The permission stays.',
+  ),
+  digidNext: L('Kies de plekken', 'Choose the places'),
   gateBack: L('Terug naar mijn plekken', 'Back to my places'),
   homeTitle: L('Uw plekken', 'Your places'),
   appointmentsChoice: L('Bekijk mijn afspraken', 'See my appointments'),
