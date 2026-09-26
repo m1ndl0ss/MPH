@@ -15,6 +15,7 @@ import {
   type Kind,
   type Lang,
   type LinkedPlace,
+  type Localized,
   type Task,
 } from './data'
 
@@ -131,6 +132,10 @@ function shell(content: string) {
       ${content}
     </div>
   `
+}
+
+function fill(text: Localized, name: string): string {
+  return t(lang, text).replaceAll('{name}', name)
 }
 
 function backButton(action: string) {
@@ -274,8 +279,8 @@ function renderConfirm(place: CatalogPlace, task: Task, booking?: Booking) {
     <section class="screen">
       ${backButton(booking ? 'time-back' : 'tasks-back')}
       <h1>${t(lang, task.label)}</h1>
-      <p class="permission-note">${t(lang, booking ? ui.acceptAppointment : ui.acceptTask)}</p>
-      ${booking ? `<p class="call-lead">${t(lang, ui.slotConfirm)}</p>` : ''}
+      <p class="permission-note">${fill(booking ? ui.acceptAppointment : ui.acceptTask, place.name)}</p>
+      ${booking ? `<p class="call-lead">${fill(ui.slotConfirm, place.name)}</p>` : ''}
       ${when}
       <div class="actions">
         <button class="btn btn-primary" type="button" data-action="start">${t(lang, booking ? ui.startBook : ui.startHelp)}</button>
@@ -298,7 +303,7 @@ function renderDone(place: CatalogPlace, task: Task, booking?: Booking) {
   return shell(`
     <section class="screen screen-done">
       <div class="success-mark" aria-hidden="true">✓</div>
-      <h1>${t(lang, booking ? ui.bookedTitle : ui.doneTitle)}</h1>
+      <h1>${fill(booking ? ui.bookedTitle : ui.doneTitle, place.name)}</h1>
       ${when}
       ${result ? `<ul class="result-list">${result}</ul>` : ''}
       <div class="actions">
@@ -312,7 +317,7 @@ function renderDone(place: CatalogPlace, task: Task, booking?: Booking) {
 
 function renderSensitive(place: CatalogPlace, task: Task) {
   const phone = place.phone
-    ? `<p class="meta-label">${t(lang, ui.sensitivePhone)}</p>
+    ? `<p class="meta-label">${fill(ui.sensitivePhone, place.name)}</p>
        <a class="phone-number" href="tel:${place.phone.replaceAll(' ', '')}">${place.phone}</a>`
     : `<p class="call-lead">${t(lang, ui.toCaretaker)}</p>`
 
@@ -320,7 +325,7 @@ function renderSensitive(place: CatalogPlace, task: Task) {
     <section class="screen">
       ${backButton('tasks-back')}
       <h1>${t(lang, task.label)}</h1>
-      <p class="check-note">${t(lang, ui.sensitiveLead)}</p>
+      <p class="check-note">${fill(ui.sensitiveLead, place.name)}</p>
       ${phone}
       <div class="actions">
         <button class="btn btn-primary" type="button" data-action="home">${t(lang, ui.gateBack)}</button>
