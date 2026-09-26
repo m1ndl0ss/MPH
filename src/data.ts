@@ -6,6 +6,10 @@ export function t(lang: Lang, text: Localized): string {
   return text[lang]
 }
 
+const L = (nl: string, en: string): Localized => ({ nl, en })
+
+export type Kind = 'gp' | 'dentist' | 'pharmacy' | 'hospital' | 'tax' | 'pension' | 'town'
+
 export type Appointment = {
   id: string
   title: Localized
@@ -15,625 +19,572 @@ export type Appointment = {
   reminder: Localized
 }
 
-export type Domain = {
-  id: string
-  label: Localized
-  organisations: Organisation[]
-}
-
-export type Organisation = {
-  id: string
-  label: Localized
-  /** Display form as published (with spaces). */
-  phone: string
-  /** Digits only for tel: links. */
-  phoneTel: string
-  tasks: Task[]
-}
-
 export type Task = {
   id: string
   label: Localized
-  /** 'done' = we finish it; 'call' = go straight to the phone screen. */
-  outcome: 'done' | 'call'
-  steps: Localized[]
+  outcome: 'book' | 'done' | 'caretaker' | 'sensitive'
+  result?: Localized[]
 }
+
+export type CatalogPlace = {
+  id: string
+  kind: Kind
+  name: string
+  address: string
+  city: string
+  /** Published switchboard. Shown only when a task needs an extra check. */
+  phone?: string
+  tasks: Task[]
+}
+
+export type LinkedPlace = {
+  catalogId: string
+  patientNumber: string
+}
+
+export const caretaker = L('Kind, kleinkind of verzorger', 'Child, grandchild, or caretaker')
+
+export const bookDates: { id: string; label: Localized }[] = [
+  { id: '2026-09-28', label: L('Maandag 28 september', 'Monday 28 September') },
+  { id: '2026-09-29', label: L('Dinsdag 29 september', 'Tuesday 29 September') },
+  { id: '2026-09-30', label: L('Woensdag 30 september', 'Wednesday 30 September') },
+  { id: '2026-10-01', label: L('Donderdag 1 oktober', 'Thursday 1 October') },
+  { id: '2026-10-02', label: L('Vrijdag 2 oktober', 'Friday 2 October') },
+  { id: '2026-10-05', label: L('Maandag 5 oktober', 'Monday 5 October') },
+]
+
+export const bookTimes = ['08:30', '09:15', '10:45', '13:00', '14:30', '16:15']
+
+const reminder: Localized = L(
+  'De dag ervoor om 18:00 krijgt u een herinnering',
+  'The day before at 18:00 you get a reminder',
+)
 
 export const appointments: Appointment[] = [
   {
     id: 'a1',
-    title: {
-      nl: 'Controle bij de oogarts',
-      en: 'Eye doctor check',
-    },
-    place: { nl: 'Amsterdam UMC', en: 'Amsterdam UMC' },
-    date: { nl: 'Dinsdag 30 september', en: 'Tuesday 30 September' },
+    title: L('Controle bij de oogarts', 'Eye doctor check'),
+    place: L('Maastricht UMC+', 'Maastricht UMC+'),
+    date: L('Dinsdag 30 september', 'Tuesday 30 September'),
     time: '10:15',
-    reminder: {
-      nl: 'Morgen om 09:00 krijgt u een herinnering',
-      en: 'Tomorrow at 09:00 you get a reminder',
-    },
+    reminder,
   },
   {
     id: 'a2',
-    title: {
-      nl: 'Gesprek met de huisarts',
-      en: 'Talk with your GP',
-    },
-    place: {
-      nl: 'Huisartsenpraktijk De Linden',
-      en: 'Huisartsenpraktijk De Linden',
-    },
-    date: { nl: 'Vrijdag 3 oktober', en: 'Friday 3 October' },
+    title: L('Gesprek met de huisarts', 'Talk with your GP'),
+    place: L('Huisartsenpraktijk Smeets', 'Huisartsenpraktijk Smeets'),
+    date: L('Vrijdag 3 oktober', 'Friday 3 October'),
     time: '14:30',
-    reminder: {
-      nl: 'Die ochtend om 08:00 krijgt u een herinnering',
-      en: 'That morning at 08:00 you get a reminder',
-    },
-  },
-  {
-    id: 'a3',
-    title: {
-      nl: 'Afspraak bij de gemeente',
-      en: 'Appointment at the town hall',
-    },
-    place: {
-      nl: 'Gemeentehuis, loket Wmo',
-      en: 'Town hall, Wmo desk',
-    },
-    date: { nl: 'Maandag 6 oktober', en: 'Monday 6 October' },
-    time: '11:00',
-    reminder: {
-      nl: 'De dag ervoor om 18:00 krijgt u een herinnering',
-      en: 'The day before at 18:00 you get a reminder',
-    },
+    reminder,
   },
 ]
 
-const openHospital: Localized = {
-  nl: 'Een medewerker opent het ziekenhuis voor u',
-  en: 'A person opens the hospital for you',
+const book = (id: string, label: Localized): Task => ({ id, label, outcome: 'book' })
+const done = (id: string, label: Localized, result?: Localized[]): Task => ({
+  id,
+  label,
+  outcome: 'done',
+  result,
+})
+const ask = (id: string, label: Localized): Task => ({ id, label, outcome: 'caretaker' })
+const sensitive = (id: string, label: Localized): Task => ({ id, label, outcome: 'sensitive' })
+
+export function tasksFor(kind: Kind): Task[] {
+  if (kind === 'gp') {
+    return [
+      book('book', L('Maak een afspraak', 'Make an appointment')),
+      done('repeat', L('Vraag een herhaalrecept', 'Ask for a repeat prescription'), [
+        L('Het recept gaat naar uw apotheek', 'The prescription goes to your pharmacy'),
+        L('U kunt het morgen ophalen', 'You can pick it up tomorrow'),
+      ]),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  if (kind === 'dentist') {
+    return [
+      book('book', L('Maak een afspraak', 'Make an appointment')),
+      book('check', L('Afspraak voor de controle', 'Book a check-up')),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  if (kind === 'pharmacy') {
+    return [
+      done('ready', L('Zet mijn medicijnen klaar', 'Prepare my medicines'), [
+        L('Uw medicijnen staan morgen klaar', 'Your medicines will be ready tomorrow'),
+      ]),
+      done('hours', L('Openingstijden', 'Opening hours'), [
+        L('Maandag tot vrijdag 08:30 tot 17:30', 'Monday to Friday 08:30 to 17:30'),
+      ]),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  if (kind === 'hospital') {
+    return [
+      book('book', L('Maak een afspraak', 'Make an appointment')),
+      done('hours', L('Bezoektijden', 'Visiting hours'), [
+        L('Doordeweeks 11:00 tot 20:00', 'Weekdays 11:00 to 20:00'),
+      ]),
+      sensitive('file', L('Bekijk mijn medisch dossier', 'See my medical file')),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  if (kind === 'tax') {
+    return [
+      done('look', L('Bekijk mijn gegevens', 'See my details'), [
+        L('De gegevens van deze maand staan klaar', 'This month’s details are ready'),
+      ]),
+      sensitive('pay', L('Doe een betaling', 'Make a payment')),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  if (kind === 'pension') {
+    return [
+      done('pay', L('Bekijk mijn betaling', 'See my payment'), [
+        L('De volgende betaaldatum staat klaar', 'The next payment date is ready'),
+      ]),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
+    ]
+  }
+  return [
+    book('book', L('Maak een afspraak', 'Make an appointment')),
+    done('status', L('Bekijk mijn aanvraag', 'See my request'), [
+      L('Uw aanvraag is in behandeling', 'Your request is being handled'),
+    ]),
+    ask('other', L('Iets anders vragen', 'Ask something else')),
+  ]
 }
 
-const digidStays: Localized = {
-  nl: 'Uw DigiD Machtigen blijft bij die persoon',
-  en: 'Your DigiD Machtigen stays with that person',
-}
-
-const seeInThuis: Localized = {
-  nl: 'U ziet de afspraak in Thuis',
-  en: 'You see the appointment in Thuis',
-}
-
-const viewAppointmentSteps: Localized[] = [
-  openHospital,
-  digidStays,
-  seeInThuis,
+export const kinds: { id: Kind; label: Localized }[] = [
+  { id: 'gp', label: L('Huisarts', 'GP') },
+  { id: 'dentist', label: L('Tandarts', 'Dentist') },
+  { id: 'pharmacy', label: L('Apotheek', 'Pharmacy') },
+  { id: 'hospital', label: L('Ziekenhuis', 'Hospital') },
+  { id: 'tax', label: L('Belasting en toeslagen', 'Tax and benefits') },
+  { id: 'pension', label: L('Pensioen', 'Pension') },
+  { id: 'town', label: L('Gemeente', 'Town hall') },
 ]
 
-const costSteps = (place: string): Localized[] => [
+export const catalog: CatalogPlace[] = [
   {
-    nl: `Een medewerker opent ${place} voor u`,
-    en: `A person opens ${place} for you`,
+    id: 'gp-wyck',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Smeets',
+    address: 'Heerderweg 5',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
   },
   {
-    nl: 'De kosten worden opgehaald',
-    en: 'The costs are fetched',
+    id: 'gp-caberg',
+    kind: 'gp',
+    name: 'Medisch Centrum Caberg',
+    address: 'Clavecymbelstraat 39',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
   },
   {
-    nl: 'U ziet een korte lijst',
-    en: 'You see a short list',
+    id: 'gp-ceramique',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Ceramique',
+    address: 'Avenue Ceramique 155',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
   },
-]
-
-export const domains: Domain[] = [
   {
-    id: 'ziekenhuis',
-    label: { nl: 'Ziekenhuis', en: 'Hospital' },
-    organisations: [
-      {
-        id: 'amsterdam-umc',
-        label: { nl: 'Amsterdam UMC', en: 'Amsterdam UMC' },
-        phone: '020 566 9111',
-        phoneTel: '0205669111',
-        tasks: [
-          {
-            id: 'ziekenhuis-afspraak',
-            label: {
-              nl: 'Afspraak bekijken',
-              en: 'See the appointment',
-            },
-            outcome: 'done',
-            steps: viewAppointmentSteps,
-          },
-          {
-            id: 'ziekenhuis-bellen',
-            label: {
-              nl: 'Bel het ziekenhuis',
-              en: 'Call the hospital',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'umc-utrecht',
-        label: { nl: 'UMC Utrecht', en: 'UMC Utrecht' },
-        phone: '088 75 555 55',
-        phoneTel: '0887555555',
-        tasks: [
-          {
-            id: 'utrecht-afspraak',
-            label: {
-              nl: 'Afspraak bekijken',
-              en: 'See the appointment',
-            },
-            outcome: 'done',
-            steps: viewAppointmentSteps,
-          },
-          {
-            id: 'utrecht-bellen',
-            label: {
-              nl: 'Bel UMC Utrecht',
-              en: 'Call UMC Utrecht',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'erasmus-mc',
-        label: { nl: 'Erasmus MC', en: 'Erasmus MC' },
-        phone: '010 704 0 704',
-        phoneTel: '0107040704',
-        tasks: [
-          {
-            id: 'erasmus-afspraak',
-            label: {
-              nl: 'Afspraak bekijken',
-              en: 'See the appointment',
-            },
-            outcome: 'done',
-            steps: viewAppointmentSteps,
-          },
-          {
-            id: 'erasmus-bellen',
-            label: {
-              nl: 'Bel Erasmus MC',
-              en: 'Call Erasmus MC',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
+    id: 'gp-annadal',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Annadal',
+    address: 'Becanusstraat 15',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-de-poort',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk De Poort',
+    address: 'Becanusstraat 15',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-heugem',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Heugem',
+    address: 'De Beente 24',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-oost',
+    kind: 'gp',
+    name: 'Huisartsen Maastricht Oost',
+    address: 'Marconistraat 1',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-scharn',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Scharn',
+    address: 'Vijverdalseweg 4',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-sint-pieter',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Sint Pieter',
+    address: 'Glacisweg 1',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-aan-de-maas',
+    kind: 'gp',
+    name: 'Huisartspraktijk aan de Maas',
+    address: 'Schoolstraat 27b',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-maasmedics',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Maasmedics',
+    address: 'Roserije 51',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-malberg',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Malberg',
+    address: 'Malbergplein 15a',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'gp-van-kleef',
+    kind: 'gp',
+    name: 'Huisartsenpraktijk Dr. van Kleef',
+    address: 'Victor de Stuersstraat 15',
+    city: 'Maastricht',
+    tasks: tasksFor('gp'),
+  },
+  {
+    id: 'dentist-scharn',
+    kind: 'dentist',
+    name: 'Dental Clinics Maastricht Scharn',
+    address: 'Scharnerweg 16',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-centrum',
+    kind: 'dentist',
+    name: 'Dental Clinics Maastricht Centrum',
+    address: 'Koningin Emmaplein 10',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-heerderrein',
+    kind: 'dentist',
+    name: 'Dental Clinics Maastricht Heerderrein',
+    address: 'Rijksweg 72-A3',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-mondzorg',
+    kind: 'dentist',
+    name: 'Mondzorg Maastricht',
+    address: 'Professor Pieter Willemsstraat 21',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-bolwerk',
+    kind: 'dentist',
+    name: 'Bolwerk Tandartsen',
+    address: 'Sint Servaasbolwerk 2',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-tp',
+    kind: 'dentist',
+    name: 'TP Maastricht',
+    address: 'Akersteenweg 22',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'dentist-jekerdal',
+    kind: 'dentist',
+    name: 'Mondzorg Jekerdal',
+    address: 'Cannerweg 134',
+    city: 'Maastricht',
+    tasks: tasksFor('dentist'),
+  },
+  {
+    id: 'apo-wyck',
+    kind: 'pharmacy',
+    name: 'Service Apotheek Wijck-Ceramique',
+    address: 'Avenue Ceramique 155',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-scharn',
+    kind: 'pharmacy',
+    name: 'Service Apotheek Scharn',
+    address: 'Vijverdalseweg 4A01',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-america',
+    kind: 'pharmacy',
+    name: 'Service Apotheek America',
+    address: 'Voltastraat 36',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-caberg',
+    kind: 'pharmacy',
+    name: 'Service Apotheek Caberg',
+    address: 'Clavecymbelstraat 37',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-heer',
+    kind: 'pharmacy',
+    name: 'Service Apotheek Heer',
+    address: 'Einsteinstraat 34-A-01',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-annadal',
+    kind: 'pharmacy',
+    name: 'Apotheek Annadal',
+    address: 'Becanusstraat 15A04',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-romkens',
+    kind: 'pharmacy',
+    name: 'Apotheek Römkens',
+    address: 'Potteriestraat 139',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'apo-mumc',
+    kind: 'pharmacy',
+    name: 'Apotheek MUMC+',
+    address: 'P. Debyelaan 25',
+    city: 'Maastricht',
+    tasks: tasksFor('pharmacy'),
+  },
+  {
+    id: 'mumc',
+    kind: 'hospital',
+    name: 'Maastricht UMC+',
+    address: 'P. Debyelaan 25',
+    city: 'Maastricht',
+    phone: '043 387 6543',
+    tasks: [
+      book('book', L('Maak een afspraak', 'Make an appointment')),
+      done('see', L('Bekijk mijn afspraak', 'See my appointment'), [
+        L('Oogarts, dinsdag 30 september, 10:15', 'Eye doctor, Tuesday 30 September, 10:15'),
+      ]),
+      done('hours', L('Bezoektijden', 'Visiting hours'), [
+        L('Doordeweeks 11:00 tot 20:00', 'Weekdays 11:00 to 20:00'),
+        L('Weekend 14:00 tot 20:00', 'Weekend 14:00 to 20:00'),
+      ]),
+      sensitive('file', L('Bekijk mijn medisch dossier', 'See my medical file')),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
     ],
   },
   {
-    id: 'huisarts',
-    label: { nl: 'Huisarts', en: 'GP' },
-    organisations: [
-      {
-        id: 'huisarts-linden',
-        label: {
-          nl: 'Huisartsenpraktijk De Linden',
-          en: 'Huisartsenpraktijk De Linden',
-        },
-        // Published number of Huisartsenpraktijk De Linde (Soest)
-        phone: '035 601 45 45',
-        phoneTel: '0356014545',
-        tasks: [
-          {
-            id: 'ha-recept',
-            label: {
-              nl: 'Herhaalrecept aanvragen',
-              en: 'Ask for a repeat prescription',
-            },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker vraagt het recept aan',
-                en: 'A person asks for the prescription',
-              },
-              {
-                nl: 'De apotheek krijgt bericht',
-                en: 'The pharmacy gets a message',
-              },
-              {
-                nl: 'U krijgt bericht als het klaar is',
-                en: 'You get a message when it is ready',
-              },
-            ],
-          },
-          {
-            id: 'ha-bellen',
-            label: {
-              nl: 'Bel de huisarts',
-              en: 'Call the GP',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'apotheek',
-        label: { nl: 'Apotheek Centrum', en: 'Apotheek Centrum' },
-        // Erasmus MC Apotheek (public hospital pharmacy line)
-        phone: '010 703 04 24',
-        phoneTel: '0107030424',
-        tasks: [
-          {
-            id: 'apo-ophalen',
-            label: {
-              nl: 'Medicijnen klaarzetten',
-              en: 'Prepare medicines for pickup',
-            },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker vraagt dit na bij de apotheek',
-                en: 'A person checks this with the pharmacy',
-              },
-              {
-                nl: 'U krijgt een duidelijk antwoord',
-                en: 'You get a clear answer',
-              },
-              {
-                nl: 'U weet wanneer u kunt ophalen',
-                en: 'You know when you can pick them up',
-              },
-            ],
-          },
-          {
-            id: 'apo-bellen',
-            label: {
-              nl: 'Bel de apotheek',
-              en: 'Call the pharmacy',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-    ],
+    id: 'zuyderland',
+    kind: 'hospital',
+    name: 'Zuyderland Medisch Centrum Sittard-Geleen',
+    address: 'Dr. H. van der Hoffplein 1',
+    city: 'Sittard-Geleen',
+    phone: '088 459 7777',
+    tasks: tasksFor('hospital'),
+  },
+  {
+    id: 'zuyderland-heerlen',
+    kind: 'hospital',
+    name: 'Zuyderland Medisch Centrum Heerlen',
+    address: 'Henri Dunantstraat 5',
+    city: 'Heerlen',
+    phone: '088 459 7777',
+    tasks: tasksFor('hospital'),
   },
   {
     id: 'toeslagen',
-    label: {
-      nl: 'Belasting en toeslagen',
-      en: 'Tax and benefits',
-    },
-    organisations: [
-      {
-        id: 'dienst-toeslagen',
-        label: { nl: 'Dienst Toeslagen', en: 'Dienst Toeslagen' },
-        phone: '0800 - 0543',
-        phoneTel: '08000543',
-        tasks: [
-          {
-            id: 'huurtoeslag',
-            label: { nl: 'Huurtoeslag bekijken', en: 'See rent benefit' },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker opent Dienst Toeslagen voor u',
-                en: 'A person opens Dienst Toeslagen for you',
-              },
-              digidStays,
-              {
-                nl: 'U ziet een korte samenvatting',
-                en: 'You see a short summary',
-              },
-            ],
-          },
-          {
-            id: 'toeslagen-bellen',
-            label: {
-              nl: 'Bel Dienst Toeslagen',
-              en: 'Call Dienst Toeslagen',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'belastingdienst',
-        label: { nl: 'Belastingdienst', en: 'Belastingdienst' },
-        phone: '0800 - 0543',
-        phoneTel: '08000543',
-        tasks: [
-          {
-            id: 'aangifte',
-            label: {
-              nl: 'Belastingaangifte voorbereiden',
-              en: 'Prepare a tax return',
-            },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker opent de Belastingdienst voor u',
-                en: 'A person opens Belastingdienst for you',
-              },
-              {
-                nl: 'De gegevens worden geordend',
-                en: 'The details are put in order',
-              },
-              {
-                nl: 'U beslist zelf of u verder gaat',
-                en: 'You decide yourself whether to continue',
-              },
-            ],
-          },
-          {
-            id: 'belasting-bellen',
-            label: {
-              nl: 'Bel de Belastingdienst',
-              en: 'Call Belastingdienst',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
+    kind: 'tax',
+    name: 'Dienst Toeslagen',
+    address: 'Graadt van Roggenweg 500',
+    city: 'Utrecht',
+    phone: '0800 0543',
+    tasks: [
+      done('huur', L('Bekijk mijn huurtoeslag', 'See my rent benefit'), [
+        L('De toeslag van deze maand staat klaar', 'This month’s benefit is ready'),
+      ]),
+      done('zorg', L('Bekijk mijn zorgtoeslag', 'See my healthcare benefit'), [
+        L('Zorgtoeslag staat aan', 'Healthcare benefit is on'),
+      ]),
+      sensitive('pay', L('Doe een betaling', 'Make a payment')),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
     ],
   },
   {
-    id: 'verzekering',
-    label: { nl: 'Zorgverzekering', en: 'Health insurance' },
-    organisations: [
-      {
-        id: 'cz',
-        label: { nl: 'CZ', en: 'CZ' },
-        phone: '088 555 77 77',
-        phoneTel: '0885557777',
-        tasks: [
-          {
-            id: 'cz-kosten',
-            label: { nl: 'Kosten bekijken', en: 'See costs' },
-            outcome: 'done',
-            steps: costSteps('CZ'),
-          },
-          {
-            id: 'cz-bellen',
-            label: { nl: 'Bel CZ', en: 'Call CZ' },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'vgz',
-        label: { nl: 'VGZ', en: 'VGZ' },
-        phone: '0900 - 84 90',
-        phoneTel: '09008490',
-        tasks: [
-          {
-            id: 'vgz-kosten',
-            label: { nl: 'Kosten bekijken', en: 'See costs' },
-            outcome: 'done',
-            steps: costSteps('VGZ'),
-          },
-          {
-            id: 'vgz-bellen',
-            label: { nl: 'Bel VGZ', en: 'Call VGZ' },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'zilveren-kruis',
-        label: { nl: 'Zilveren Kruis', en: 'Zilveren Kruis' },
-        phone: '071 751 00 51',
-        phoneTel: '0717510051',
-        tasks: [
-          {
-            id: 'zk-kosten',
-            label: { nl: 'Kosten bekijken', en: 'See costs' },
-            outcome: 'done',
-            steps: costSteps('Zilveren Kruis'),
-          },
-          {
-            id: 'zk-bellen',
-            label: {
-              nl: 'Bel Zilveren Kruis',
-              en: 'Call Zilveren Kruis',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-      {
-        id: 'menzis',
-        label: { nl: 'Menzis', en: 'Menzis' },
-        phone: '088 222 40 40',
-        phoneTel: '0882224040',
-        tasks: [
-          {
-            id: 'menzis-kosten',
-            label: { nl: 'Kosten bekijken', en: 'See costs' },
-            outcome: 'done',
-            steps: costSteps('Menzis'),
-          },
-          {
-            id: 'menzis-bellen',
-            label: { nl: 'Bel Menzis', en: 'Call Menzis' },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
+    id: 'belasting',
+    kind: 'tax',
+    name: 'Belastingdienst Maastricht',
+    address: 'Terra Nigrastraat 10',
+    city: 'Maastricht',
+    phone: '0800 0543',
+    tasks: tasksFor('tax'),
+  },
+  {
+    id: 'svb',
+    kind: 'pension',
+    name: 'SVB, AOW',
+    address: 'Avenue Céramique 50',
+    city: 'Maastricht',
+    tasks: [
+      done('pay', L('Bekijk mijn AOW', 'See my AOW'), [
+        L('Volgende betaling: 23 oktober', 'Next payment: 23 October'),
+      ]),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
     ],
   },
   {
-    id: 'pensioen',
-    label: { nl: 'Pensioen', en: 'Pension' },
-    organisations: [
-      {
-        id: 'svb',
-        label: { nl: 'SVB (AOW)', en: 'SVB (AOW)' },
-        phone: '088 949 40 00',
-        phoneTel: '0889494000',
-        tasks: [
-          {
-            id: 'aow-bekijken',
-            label: {
-              nl: 'AOW-betaling bekijken',
-              en: 'See AOW payment',
-            },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker opent de SVB voor u',
-                en: 'A person opens the SVB for you',
-              },
-              digidStays,
-              {
-                nl: 'U ziet de datum en het bedrag',
-                en: 'You see the date and the amount',
-              },
-            ],
-          },
-          {
-            id: 'svb-bellen',
-            label: { nl: 'Bel de SVB', en: 'Call the SVB' },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'gemeente',
-    label: { nl: 'Gemeente', en: 'Town hall' },
-    organisations: [
-      {
-        id: 'wmo',
-        label: {
-          nl: 'Gemeente — loket Wmo',
-          en: 'Town hall — Wmo desk',
-        },
-        // Gemeente Amsterdam Wmo Helpdesk
-        phone: '0800 0643',
-        phoneTel: '08000643',
-        tasks: [
-          {
-            id: 'wmo-status',
-            label: {
-              nl: 'Stand van aanvraag bekijken',
-              en: 'See how far the request is',
-            },
-            outcome: 'done',
-            steps: [
-              {
-                nl: 'Een medewerker zoekt de stand op',
-                en: 'A person looks up the status',
-              },
-              {
-                nl: 'U krijgt een korte uitleg',
-                en: 'You get a short explanation',
-              },
-              {
-                nl: 'U weet of er nog iets van u nodig is',
-                en: 'You know if anything is still needed from you',
-              },
-            ],
-          },
-          {
-            id: 'wmo-bellen',
-            label: {
-              nl: 'Bel het Wmo-loket',
-              en: 'Call the Wmo desk',
-            },
-            outcome: 'call',
-            steps: [],
-          },
-        ],
-      },
+    id: 'gemeente-maastricht',
+    kind: 'town',
+    name: 'Gemeente Maastricht',
+    address: 'Mosae Forum 10',
+    city: 'Maastricht',
+    tasks: [
+      book('book', L('Maak een afspraak', 'Make an appointment')),
+      done('wmo', L('Bekijk hulp in huis', 'See help at home'), [
+        L('Uw aanvraag is in behandeling', 'Your request is being handled'),
+      ]),
+      ask('other', L('Iets anders vragen', 'Ask something else')),
     ],
   },
 ]
 
+export const defaultLinks: LinkedPlace[] = [
+  { catalogId: 'gp-wyck', patientNumber: '48219' },
+  { catalogId: 'dentist-scharn', patientNumber: '1104' },
+  { catalogId: 'apo-wyck', patientNumber: '48219' },
+  { catalogId: 'mumc', patientNumber: '77301' },
+  { catalogId: 'toeslagen', patientNumber: '2026-1844' },
+  { catalogId: 'svb', patientNumber: '55021' },
+  { catalogId: 'gemeente-maastricht', patientNumber: '14043' },
+]
+
+export function placeById(id: string): CatalogPlace | undefined {
+  return catalog.find((item) => item.id === id)
+}
+
+export function searchPlaces(kind: Kind, query: string, excludeIds: string[] = []): CatalogPlace[] {
+  const needle = query.trim().toLowerCase()
+  return catalog.filter((place) => {
+    if (place.kind !== kind) return false
+    if (excludeIds.includes(place.id)) return false
+    if (!needle) return true
+    const haystack = `${place.name} ${place.address} ${place.city}`.toLowerCase()
+    return haystack.includes(needle)
+  })
+}
+
 export const ui = {
-  brandSub: {
-    nl: 'Hulp bij digitale taken',
-    en: 'Help with digital tasks',
-  },
-  langLabel: {
-    nl: 'Taal',
-    en: 'Language',
-  },
-  homeTitle: {
-    nl: 'Wat wilt u?',
-    en: 'What do you want?',
-  },
-  appointmentsChoice: {
-    nl: 'Bekijk mijn afspraken',
-    en: 'See my appointments',
-  },
-  helpChoice: {
-    nl: 'Help me op een website',
-    en: 'Help me on a website',
-  },
-  back: {
-    nl: 'Terug',
-    en: 'Back',
-  },
-  appointmentsTitle: {
-    nl: 'Mijn afspraken',
-    en: 'My appointments',
-  },
-  date: { nl: 'Datum', en: 'Date' },
-  time: { nl: 'Tijd', en: 'Time' },
-  place: { nl: 'Plaats', en: 'Place' },
-  domainsTitle: {
-    nl: 'Waar wilt u hulp?',
-    en: 'Where do you need help?',
-  },
-  placesTitle: {
-    nl: 'Welke plek?',
-    en: 'Which place?',
-  },
-  tasksTitle: {
-    nl: 'Wat wilt u?',
-    en: 'What do you want?',
-  },
-  digidNote: {
-    nl: 'Een persoon mag dit voor u doen met DigiD Machtigen. Het programma mag zelf niet inloggen.',
-    en: 'A person may do this for you with DigiD Machtigen. The program cannot log in by itself.',
-  },
-  startHelp: {
-    nl: 'Ja, start',
-    en: 'Yes, start',
-  },
-  stopCancel: {
-    nl: 'Stoppen / Annuleren',
-    en: 'Stop / Cancel',
-  },
-  doneTitle: {
-    nl: 'Klaar. Wij hebben dit voor u gedaan.',
-    en: 'Done. We have done this for you.',
-  },
-  doneHome: {
-    nl: 'Terug',
-    en: 'Back',
-  },
-  callLead: {
-    nl: 'Dit kunnen wij niet voor u doen. Bel dit nummer.',
-    en: 'We cannot do this for you. Call this number.',
-  },
-  callButton: {
-    nl: 'Bel',
-    en: 'Call',
-  },
-  pageTitle: {
-    nl: 'Thuis — Hulp bij digitale taken',
-    en: 'Thuis — Help with digital tasks',
-  },
+  brandSub: L('Alleen uw eigen plekken', 'Only your own places'),
+  langLabel: L('Taal', 'Language'),
+  helperLink: L('Voor kind, kleinkind of verzorger', 'For a child, grandchild, or caretaker'),
+  gateTitle: L('Dit is voor uw kind, kleinkind of verzorger', 'This is for your child, grandchild, or caretaker'),
+  gateLead: L(
+    'Die logt eenmalig in met uw DigiD. Daarna nemen uw plekken afspraken aan, zonder opnieuw in te loggen. Ga terug als u dat niet bent.',
+    'They log in once with your DigiD. After that, your places accept appointments without logging in again. Go back if that is not you.',
+  ),
+  gateYes: L('Ik ben kind, kleinkind of verzorger', 'I am a child, grandchild, or caretaker'),
+  gateBack: L('Terug naar mijn plekken', 'Back to my places'),
+  homeTitle: L('Uw plekken', 'Your places'),
+  homeNote: L(
+    'U hoeft niet in te loggen. Een afspraakverzoek wordt aangenomen.',
+    'You do not need to log in. An appointment request is accepted.',
+  ),
+  appointmentsChoice: L('Bekijk mijn afspraken', 'See my appointments'),
+  back: L('Terug', 'Back'),
+  appointmentsTitle: L('Mijn afspraken', 'My appointments'),
+  emptyAppointments: L('U heeft nog geen afspraken.', 'You have no appointments yet.'),
+  date: L('Datum', 'Date'),
+  time: L('Tijd', 'Time'),
+  place: L('Plaats', 'Place'),
+  dateTitle: L('Welke dag?', 'Which day?'),
+  timeTitle: L('Hoe laat?', 'What time?'),
+  startHelp: L('Ja, doe dit', 'Yes, do this'),
+  stopCancel: L('Stoppen', 'Stop'),
+  acceptAppointment: L(
+    'U hoeft niet in te loggen. Deze plek neemt het verzoek aan.',
+    'You do not need to log in. This place accepts the request.',
+  ),
+  slotConfirm: L(
+    'De afspraak staat zodra de plek het tijdstip bevestigt.',
+    'The appointment is booked once the place confirms the time.',
+  ),
+  acceptTask: L(
+    'U hoeft niet in te loggen. Deze plek neemt dit aan.',
+    'You do not need to log in. This place accepts this.',
+  ),
+  doneTitle: L('Klaar. De plek heeft dit aangenomen.', 'Done. The place has accepted this.'),
+  bookedTitle: L(
+    'Klaar. De plek heeft het tijdstip bevestigd.',
+    'Done. The place has confirmed the time.',
+  ),
+  sensitiveLead: L(
+    'Dit heeft een extra controle nodig. De toestemming dekt dit niet.',
+    'This needs an extra check. The permission does not cover this.',
+  ),
+  sensitivePhone: L('Nummer van deze plek', 'Number for this place'),
+  startBook: L('Ja, deze afspraak', 'Yes, this appointment'),
+  viewAppointments: L('Bekijk mijn afspraken', 'See my appointments'),
+  toCaretaker: L(
+    'Dit kunnen wij niet zelf doen. Uw kind, kleinkind of verzorger krijgt hier bericht over.',
+    'We cannot do this ourselves. Your child, grandchild, or caretaker will get a message about this.',
+  ),
+  caretakerSent: L('Bericht naar uw verzorger', 'Message to your caretaker'),
+  setupTitle: L('Eenmalig instellen', 'Set up once'),
+  setupPermission: L(
+    'Log eenmalig in met de DigiD van deze persoon. Die toestemming blijft. Afspraken en andere gewone taken worden daarna aangenomen, zonder opnieuw in te loggen.',
+    'Log in once with this person’s DigiD. That permission stays. Appointments and other ordinary tasks are then accepted, without logging in again.',
+  ),
+  setupLead: L(
+    'Kies alleen de plekken die deze persoon echt gebruikt.',
+    'Choose only the places this person actually uses.',
+  ),
+  addPlace: L('Plek toevoegen', 'Add a place'),
+  kindTitle: L('Wat voor plek?', 'What kind of place?'),
+  whichTitle: L('Welke?', 'Which one?'),
+  searchPlace: L('Zoek op naam of straat', 'Search by name or street'),
+  noPlaceMatch: L('Geen plek gevonden.', 'No place found.'),
+  numberTitle: L('Nummer op de pas of de brief', 'Number on the card or the letter'),
+  numberSkip: L('Dit nummer klopt', 'This number is right'),
+  finishSetup: L('Klaar met instellen', 'Finish setup'),
+  remove: L('Haal weg', 'Remove'),
+  emptyPlaces: L(
+    'Er is nog niets ingesteld.',
+    'Nothing has been set up yet.',
+  ),
+  pageTitle: L('Alleen uw eigen plekken', 'Only your own places'),
 } as const satisfies Record<string, Localized>
